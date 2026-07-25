@@ -26,21 +26,47 @@ final searchQueryProvider = NotifierProvider<SearchQueryNotifier, String>(() {
 // 3. Provider qui combine tout pour filtrer en temps réel
 final filteredExercisesProvider = FutureProvider<List<Exercise>>((ref) async {
   final repository = ref.watch(exerciseRepositoryProvider);
-
-  // On écoute le mot-clé. Dès qu'il change, ce FutureProvider se relance tout seul !
   final query = ref.watch(searchQueryProvider).toLowerCase();
 
-  // Récupération depuis la base SQLite
-  final allExercises = await repository.getAllExercises();
+  // 🚀 On écoute en plus le groupe musculaire sélectionné
+  final selectedMuscle = ref.watch(selectedMuscleProvider);
 
-  if (query.isEmpty) {
-    return allExercises;
+  // Récupération globale
+  var exercises = await repository.getAllExercises();
+
+  // 1. Filtrage par groupe musculaire (si sélectionné)
+  if (selectedMuscle != null) {
+    exercises = exercises.where((ex) => ex.muscleGroup == selectedMuscle).toList();
   }
 
-  // Filtrage intelligent
-  return allExercises.where((exercise) {
-    final matchesName = exercise.name.toLowerCase().contains(query);
-    final matchesDescription = exercise.description.toLowerCase().contains(query);
-    return matchesName || matchesDescription;
-  }).toList();
+  // 2. Filtrage par mot-clé (si texte saisi)
+  if (query.isNotEmpty) {
+    exercises = exercises.where((ex) =>
+    ex.name.toLowerCase().contains(query) ||
+        ex.description.toLowerCase().contains(query)
+    ).toList();
+  }
+
+  return exercises;
+});
+
+// Filtrage par groupe musculaire
+// Provider pour stocker le groupe musculaire sélectionné (null = aucun filtre, on affiche tout)
+class SelectedMuscleNotifier extends Notifier<MuscleGroup?> {
+  @override
+  MuscleGroup? build() => null; // Aucun filtre par défaut
+
+  void toggleMuscleGroup(MuscleGroup group) {
+    if (state == group) {
+      state = null; // Si on clique sur le même groupe, on désactive le filtre
+    } else {
+      state = group; // Sinon on applique le nouveau filtre
+    }
+  }
+
+  void clearFilter() => state = null;
+}
+
+final selectedMuscleProvider = NotifierProvider<SelectedMuscleNotifier, MuscleGroup?>(() {
+  return SelectedMuscleNotifier();
 });

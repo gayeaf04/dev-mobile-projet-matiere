@@ -74,6 +74,46 @@ class _ExerciseListScreenState extends ConsumerState<ExerciseListScreen> {
             ),
           ),
 
+          // 🚀 NOUVEAU : BARRE DE FILTRAGE DES GROUPES MUSCULAIRES
+          SizedBox(
+            height: 40,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: MuscleGroup.values.length,
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              itemBuilder: (context, index) {
+                final muscle = MuscleGroup.values[index];
+
+                // On récupère le groupe sélectionné actuellement
+                final currentSelectedMuscle = ref.watch(selectedMuscleProvider);
+                final isSelected = currentSelectedMuscle == muscle;
+
+                // On génère un libellé propre en français pour l'UI
+                // (On réutilise l'extension ou un getter de notre modèle)
+                final label = Exercise(
+                    id: '', name: '', description: '',
+                    muscleGroup: muscle, equipmentType: EquipmentType.bodyweight
+                ).muscleGroupLabel;
+
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8.0),
+                  child: FilterChip(
+                    label: Text(label),
+                    selected: isSelected,
+                    onSelected: (_) {
+                      // On bascule l'état du filtre au clic
+                      ref.read(selectedMuscleProvider.notifier).toggleMuscleGroup(muscle);
+                    },
+                    selectedColor: Theme.of(context).colorScheme.primaryContainer,
+                    checkmarkColor: Theme.of(context).colorScheme.primary,
+                  ),
+                );
+              },
+            ),
+          ),
+
+          const SizedBox(height: 8),
+
           // LISTE DES EXERCICES (Gestion des 3 états de l'enveloppe AsyncValue)
           Expanded(
             child: exercisesAsync.when(

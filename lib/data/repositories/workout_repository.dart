@@ -1,0 +1,104 @@
+import 'package:sqflite/sqflite.dart';
+import '../../domain/models/exercise.dart';
+import '../../domain/models/workout.dart';
+import '../local/database_helper.dart';
+
+class WorkoutRepository {
+  final DatabaseHelper _dbHelper;
+
+  WorkoutRepository({DatabaseHelper? dbHelper})
+      : _dbHelper = dbHelper ?? DatabaseHelper.instance;
+
+  // --- 1. ENREGISTRER UNE SÉANCE ---
+  Future<void> saveWorkout(Workout workout) async {
+    final db = await _dbHelper.database;
+
+    // On ouvre une TRANSACTION : si une seule insertion échoue,
+    // tout est annulé pour éviter d'avoir des données corrompues en BDD.
+    await db.transaction((txn) async {
+      // a. Insertion de la séance globale
+      await txn.insert(
+        'workouts',
+        workout.toMap(),
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+
+      // b. Insertion de chaque exercice lié à cette séance
+      for (final workoutExercise in workout.exercises) {
+        await txn.insert(
+          'workout_exercises',
+          workoutExercise.toMap(),
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+    });
+  }
+
+  // --- 2. RÉCUPÉRER TOUTES LES SÉANCES (Avec leurs exercices) ---
+  Future<List<Workout>> getAllWorkouts() async {
+    final db = await _dbHelper.database;
+
+    // a. On récupère d'abord toutes les séances de la table 'workouts'
+    final List<Map<String, dynamic>> workoutMaps = await db.query(
+      'workouts',
+      orderBy: 'createdAt DESC', // Les plus récentes en premier
+    );
+
+    final List<Workout> workouts = [];
+
+    // b. Pour chaque séance, on va chercher ses exercices associés en faisant un JOIN
+    for (final workoutMap in workoutMaps) {
+      final workoutId = workoutMap['id'] as String;
+
+      final List<Map<String, dynamic>> exerciseRows = await db.rawQuery('''
+        SELECT we.*, e.name, e.description, e.muscleGroup, e.equipmentType
+        FROM workout_exercises we
+        INNER JOIN exercises e ON we.exerciseId = e.id
+        WHERE we.workoutId = ?
+      ''', [workoutId]);
+
+      // c. On reconstruit les objets WorkoutExercise à partir des résultats du JOIN
+      final List<WorkoutExercise> workoutExercises = exerciseRows.map((row) {
+        final exercise = Exercise(
+          id: row['exerciseId'] as String,
+          name: row['name'] as String,
+          description: row['description'] as String,
+          muscleGroup: MuscleGroup.values.byName(row['muscleGroup'] as String),
+          equipmentType: EquipmentType.values.byName(row['equipmentType'] as String),
+        );
+
+        return WorkoutExercise(
+          id: row['id'] as String,
+          workoutId: row['workoutId'] as String,
+          exercise: exercise,
+          sets: row['sets'] as int,
+          reps: row['reps'] as int,
+          restSeconds: row['restSeconds'] as int,
+        );
+      }).toList();
+
+      // d. On assemble le tout pour créer notre entité Workout finale
+      workouts.add(Workout(
+        id: workoutId,
+        name: workoutMap['name'] as String,
+        createdAt: DateTime.parse(workoutMap['createdAt'] as String),
+        exercises: workoutExercises,
+      ));
+    }
+
+    return workouts;
+  }
+
+  // --- 3. SUPPRIMER UNE SÉANCE ---
+  Future<void> deleteWorkout(String workoutId) async {
+    final db = await _dbHelper.database;
+    // Grâce au ON DELETE CASCADE configuré lors de la migration,
+    // supprimer la ligne dans 'workouts' va détruire automatiquement
+    // les lignes liées dans 'workout_exercises' !
+    await db.delete(
+      'workouts',
+      where: 'id = ?',
+      whereArgs: [workoutId],
+    );
+  }
+}

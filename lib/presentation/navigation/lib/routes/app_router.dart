@@ -4,8 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forge/presentation/providers/profile_provider.dart';
 import 'package:forge/presentation/screens/exercise_list_screen.dart';
+import 'package:forge/presentation/screens/home_screen.dart';
 import 'package:forge/presentation/screens/profile_setup_screen.dart';
 import 'package:go_router/go_router.dart';
+
+import '../../../screens/create_workout_screen.dart';
 
 final appRouterImpl = Provider<GoRouter>((ref) {
 
@@ -44,13 +47,18 @@ final appRouterImpl = Provider<GoRouter>((ref) {
         GoRoute(
           path: '/',
           builder: (context, state) {
-            return const ExerciseListScreen();
+            return const HomeScreen();
           },
         ),
 
         GoRoute(
           path: '/profile-setup',
           builder: (context, state) => const ProfileSetupScreen(),
+        ),
+
+        GoRoute(
+          path: '/create-workout',
+          builder: (context, state) => const CreateWorkoutScreen(),
         ),
 
         GoRoute(
