@@ -20,7 +20,7 @@ class DatabaseHelper {
     final path = join(databasePath, 'forge.db');
     return await openDatabase(
       path,
-      version: 3,
+      version: 4,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -72,6 +72,17 @@ class DatabaseHelper {
     )
   ''');
 
+    // À insérer dans le script de création de ta base SQLite :
+    await db.execute('''
+    CREATE TABLE workout_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      workout_id INTEGER,
+      workout_name TEXT,
+      date TEXT, -- Format YYYY-MM-DD
+      is_completed INTEGER
+    )
+  ''');
+
     // Injection des exercices par défaut
     await _prepopulateExercises(db);
   }
@@ -119,6 +130,21 @@ class DatabaseHelper {
       ''');
 
       print("🚀 MIGRATION REUSSIE : Les tables de séances ont été ajoutées en tâche de fond !");
+    }
+
+    if(oldVersion < 4 ) {
+      // À insérer dans le script de création de ta base SQLite :
+      await db.execute('''
+      CREATE TABLE workout_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        workout_id INTEGER,
+        workout_name TEXT,
+        date TEXT, -- Format YYYY-MM-DD
+        is_completed INTEGER
+      )
+    ''');
+
+      print("Creation de la table Workout log dans la base effectuée avec succès");
     }
   }
 }

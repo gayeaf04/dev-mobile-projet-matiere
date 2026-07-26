@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forge/presentation/navigation/lib/routes/app_router.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:go_router/go_router.dart';
 // Note : Pense à importer ton fichier de routage dès qu'il sera créé !
 // import 'presentation/navigation/app_router.dart';
 
-void main() {
-  // 1. On enveloppe TOUTE l'application dans un ProviderScope.
-  // C'est ce widget de Riverpod qui stocke l'état de tous tes providers.
-  // Sans lui, Riverpod ne peut tout simplement pas fonctionner.
+void main() async {
+  // ⚡ Indispensable pour s'assurer que les services Flutter sont prêts avant l'initialisation asynchrone
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // 🌍 Charge les données de formatage pour le français (et les autres langues)
+  await initializeDateFormatting('fr_FR', null);
+
   runApp(
     const ProviderScope(
       child: MyApp(),

@@ -1,6 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 import '../../domain/models/exercise.dart';
 import '../../domain/models/workout.dart';
+import '../../domain/models/workout_log.dart';
 import '../local/database_helper.dart';
 
 class WorkoutRepository {
@@ -100,5 +101,34 @@ class WorkoutRepository {
       where: 'id = ?',
       whereArgs: [workoutId],
     );
+  }
+
+  // --- À AJOUTER DANS TA CLASSE WORKOUTREPOSITORY ---
+
+// 1. Sauvegarder une séance validée
+  Future<void> insertWorkoutLog(WorkoutLog log) async {
+    final db = await _dbHelper.database; // Utilise le nom de ta variable de BDD interne (ex: _db, _database)
+    await db.insert(
+      'workout_history',
+      log.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+// 2. Récupérer l'historique de la semaine
+  Future<List<WorkoutLog>> getWorkoutLogsForRange(DateTime start, DateTime end) async {
+    final db = await _dbHelper.database;
+
+    final startDateStr = start.toIso8601String().split('T')[0];
+    final endDateStr = end.toIso8601String().split('T')[0];
+
+    final List<Map<String, dynamic>> maps = await db.query(
+      'workout_history',
+      where: 'date BETWEEN ? AND ?',
+      whereArgs: [startDateStr, endDateStr],
+      orderBy: 'date ASC',
+    );
+
+    return List.generate(maps.length, (i) => WorkoutLog.fromMap(maps[i]));
   }
 }

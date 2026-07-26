@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:forge/presentation/screens/historyCalendarScreen.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/workout_provider.dart';
 import 'exercise_list_screen.dart'; // Vu qu'ils sont dans le même dossier
@@ -18,6 +19,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final List<Widget> _tabs = [
     const _WorkoutDashboardTab(),
     const ExerciseListScreen(),
+    const HistoryCalendarScreen(),
   ];
 
   @override
@@ -39,6 +41,10 @@ class _HomeScreenState extends State<HomeScreen> {
           BottomNavigationBarItem(
             icon: Icon(Icons.search),
             label: 'Exercices',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.calendar_month), // <-- Icône calendrier
+            label: 'Suivi',
           ),
         ],
       ),
@@ -108,24 +114,47 @@ class _WorkoutDashboardTab extends ConsumerWidget {
                     Padding(
                       padding: const EdgeInsets.only(left: 16.0, right: 16.0, bottom: 16.0),
                       child: Column(
-                        children: workout.exercises.map((we) {
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 4.0),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  we.exercise.name,
-                                  style: const TextStyle(fontWeight: FontWeight.w500),
-                                ),
-                                Text(
-                                  '${we.sets}x${we.reps} • ${we.restSeconds}s',
-                                  style: const TextStyle(color: Colors.grey),
-                                ),
-                              ],
+                        children: [
+                          // 1. Les trois petits points (...) permettent d'étaler les exercices dans la liste
+                          ...workout.exercises.map((we) {
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 4.0),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    we.exercise.name,
+                                    style: const TextStyle(fontWeight: FontWeight.w500),
+                                  ),
+                                  Text(
+                                    '${we.sets}x${we.reps} • ${we.restSeconds}s',
+                                    style: const TextStyle(color: Colors.grey),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }).toList(), // Le .toList() reste ici mais TOUT est confiné dans les crochets de 'children'
+
+                          // 2. Maintenant, l'espacement et le bouton font partie intégrante de la même liste !
+                          const SizedBox(height: 24),
+
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Theme.of(context).colorScheme.primary,
+                                foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                              icon: const Icon(Icons.play_arrow),
+                              label: const Text('DÉMARRER LA SÉANCE', style: TextStyle(fontWeight: FontWeight.bold)),
+                              onPressed: () {
+                                // On navigue vers la session en envoyant la séance complète dans l'extra !
+                                context.push('/session', extra: workout);
+                              },
                             ),
-                          );
-                        }).toList(),
+                          ),
+                        ], // <-- Fermeture des crochets de la Column !
                       ),
                     )
                   ],

@@ -13,6 +13,11 @@ class WorkoutSessionNotifier extends Notifier<WorkoutSessionState?> {
     // l'argument passé est automatiquement accessible via "this.arg" !
     // Mais attention, pour que "this.arg" soit généré proprement sans build_runner,
     // on va plutôt stocker l'argument à l'initialisation ou le gérer à la racine.
+
+    ref.onDispose(() {
+      _cancelTimer();
+    });
+
     return null;
   }
 

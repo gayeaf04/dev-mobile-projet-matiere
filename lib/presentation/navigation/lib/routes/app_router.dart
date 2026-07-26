@@ -8,7 +8,9 @@ import 'package:forge/presentation/screens/home_screen.dart';
 import 'package:forge/presentation/screens/profile_setup_screen.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../domain/models/workout.dart';
 import '../../../screens/create_workout_screen.dart';
+import '../../../screens/workout_session_screen.dart';
 
 final appRouterImpl = Provider<GoRouter>((ref) {
 
@@ -62,12 +64,11 @@ final appRouterImpl = Provider<GoRouter>((ref) {
         ),
 
         GoRoute(
-          path: '/programs',
+          path: '/session',
           builder: (context, state) {
-            // Placeholder temporaire avant de mettre ton vrai écran
-            return const Scaffold(
-              body: Center(child: Text('Écran des programmes d\'entrainement')),
-            );
+            // On extrait l'objet Workout passé lors du clic
+            final workout = state.extra as Workout;
+            return WorkoutSessionScreen(workout: workout);
           },
         ),
       ],
