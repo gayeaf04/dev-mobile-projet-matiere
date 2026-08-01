@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/exercise_provider.dart';
 import '../../../domain/models/exercise.dart';
+import '../widgets/exercise_image.dart';
 
 // 1. Passage en ConsumerStatefulWidget pour piloter le cycle de vie du contrôleur de texte
 class ExerciseListScreen extends ConsumerStatefulWidget {
@@ -146,6 +147,7 @@ class _ExerciseListScreenState extends ConsumerState<ExerciseListScreen> {
                       ),
                       child: ListTile(
                         contentPadding: const EdgeInsets.all(16.0),
+                        leading: ExerciseThumbnail(exercise: exercise),
                         title: Text(
                           exercise.name,
                           style: const TextStyle(

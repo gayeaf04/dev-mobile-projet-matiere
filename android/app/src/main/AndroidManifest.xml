@@ -1,4 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Nécessaire pour charger les images de démonstration des exercices depuis Internet -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="forge"
         android:name="${applicationName}"

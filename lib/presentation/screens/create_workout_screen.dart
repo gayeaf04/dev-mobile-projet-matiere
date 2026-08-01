@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../providers/exercise_provider.dart';
 import '../providers/workout_provider.dart';
 import '../../../domain/models/exercise.dart';
+import '../widgets/exercise_image.dart';
 
 class CreateWorkoutScreen extends ConsumerStatefulWidget {
   const CreateWorkoutScreen({super.key});
@@ -103,6 +104,11 @@ class _CreateWorkoutScreenState extends ConsumerState<CreateWorkoutScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
+                            ExerciseThumbnail(
+                              exercise: workoutExercise.exercise,
+                              size: 44,
+                            ),
+                            const SizedBox(width: 12),
                             Expanded(
                               child: Text(
                                 workoutExercise.exercise.name,
@@ -284,6 +290,8 @@ class _CreateWorkoutScreenState extends ConsumerState<CreateWorkoutScreen> {
                                 itemBuilder: (context, index) {
                                   final ex = filteredList[index];
                                   return ListTile(
+                                    leading:
+                                        ExerciseThumbnail(exercise: ex, size: 48),
                                     title: Text(ex.name),
                                     subtitle: Text(ex.muscleGroupLabel),
                                     trailing: const Icon(Icons.add_circle, color: Colors.green),

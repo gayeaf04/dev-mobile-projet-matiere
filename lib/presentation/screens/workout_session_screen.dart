@@ -10,6 +10,7 @@ import '../providers/workout_session_provider.dart';
 import '../providers/stats_provider.dart';
 import '../providers/trophies_provider.dart';
 import '../widgets/trophy_celebration.dart';
+import '../widgets/exercise_image.dart';
 
 class WorkoutSessionScreen extends ConsumerStatefulWidget {
   final Workout workout;
@@ -146,66 +147,91 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Barre de progression des exercices
-          LinearProgressIndicator(
-            value: (session.currentExerciseIndex) / widget.workout.exercises.length,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Exercice ${session.currentExerciseIndex + 1} sur ${widget.workout.exercises.length}',
-            style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.w500),
-          ),
-          const SizedBox(height: 32),
-
-          // Carte Focus Exercice
-          Card(
-            elevation: 4,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            child: Padding(
-              padding: const EdgeInsets.all(20.0),
+          Expanded(
+            child: SingleChildScrollView(
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(
-                    exercise.name,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  // Barre de progression des exercices
+                  LinearProgressIndicator(
+                    value: (session.currentExerciseIndex) /
+                        widget.workout.exercises.length,
+                    borderRadius: BorderRadius.circular(8),
                   ),
                   const SizedBox(height: 8),
-                  Chip(
-                    label: Text(exercise.muscleGroupLabel),
-                    backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-                  ),
-                  const SizedBox(height: 16),
                   Text(
-                    exercise.description,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey[700], fontSize: 14),
+                    'Exercice ${session.currentExerciseIndex + 1} sur ${widget.workout.exercises.length}',
+                    style: const TextStyle(
+                        color: Colors.grey, fontWeight: FontWeight.w500),
                   ),
+                  const SizedBox(height: 24),
+
+                  // Carte Focus Exercice
+                  Card(
+                    elevation: 4,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16)),
+                    child: Padding(
+                      padding: const EdgeInsets.all(20.0),
+                      child: Column(
+                        children: [
+                          Text(
+                            exercise.name,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                                fontSize: 24, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 8),
+                          Chip(
+                            label: Text(exercise.muscleGroupLabel),
+                            backgroundColor:
+                                Theme.of(context).colorScheme.primaryContainer,
+                          ),
+                          const SizedBox(height: 16),
+
+                          // 🖼️ Démonstration du mouvement (départ → arrivée)
+                          ExerciseDemo(exercise: exercise),
+                          const SizedBox(height: 16),
+
+                          Text(
+                            exercise.description,
+                            textAlign: TextAlign.center,
+                            style:
+                                TextStyle(color: Colors.grey[700], fontSize: 14),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Indicateur des Séries
+                  Center(
+                    child: Column(
+                      children: [
+                        const Text('SÉRIE EN COURS',
+                            style: TextStyle(
+                                letterSpacing: 1.5, color: Colors.grey)),
+                        const SizedBox(height: 8),
+                        Text(
+                          '${session.currentSetIndex + 1} / ${currentWorkoutExercise.sets}',
+                          style: const TextStyle(
+                              fontSize: 48, fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          'Objectif : ${currentWorkoutExercise.reps} répétitions',
+                          style: const TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.w500),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
                 ],
               ),
             ),
           ),
-          const Spacer(),
-
-          // Indicateur des Séries
-          Center(
-            child: Column(
-              children: [
-                const Text('SÉRIE EN COURS', style: TextStyle(letterSpacing: 1.5, color: Colors.grey)),
-                const SizedBox(height: 8),
-                Text(
-                  '${session.currentSetIndex + 1} / ${currentWorkoutExercise.sets}',
-                  style: const TextStyle(fontSize: 48, fontWeight: FontWeight.bold),
-                ),
-                Text(
-                  'Objectif : ${currentWorkoutExercise.reps} répétitions',
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
-                ),
-              ],
-            ),
-          ),
-          const Spacer(),
+          const SizedBox(height: 16),
 
           // Bouton d'action principal
           ElevatedButton(
@@ -277,6 +303,15 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
           const SizedBox(height: 40),
 
           // Préparation de la suite
+          if (session.currentWorkoutExercise != null) ...[
+            Center(
+              child: ExerciseThumbnail(
+                exercise: session.currentWorkoutExercise!.exercise,
+                size: 96,
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
           Text(
             'Prochaine étape : Prochaine série de ${session.currentWorkoutExercise?.exercise.name}',
             textAlign: TextAlign.center,
