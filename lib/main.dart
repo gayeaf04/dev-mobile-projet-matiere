@@ -34,6 +34,7 @@ class MyApp extends ConsumerWidget {
     final router = ref.watch(appRouterImpl);
 
     return MaterialApp.router(
+      debugShowCheckedModeBanner: false,
       title: 'Fit App',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),

@@ -20,7 +20,7 @@ class DatabaseHelper {
     final path = join(databasePath, 'forge.db');
     return await openDatabase(
       path,
-      version: 4,
+      version: 5,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -82,6 +82,10 @@ class DatabaseHelper {
       is_completed INTEGER
     )
   ''');
+
+    // À exécuter lors de la création/mise à jour de ta table 'workouts' :
+    await db.execute('ALTER TABLE workouts ADD COLUMN assigned_days TEXT DEFAULT ""');
+    await db.execute('ALTER TABLE workouts ADD COLUMN has_cardio INTEGER DEFAULT 0');
 
     // Injection des exercices par défaut
     await _prepopulateExercises(db);
@@ -145,6 +149,12 @@ class DatabaseHelper {
     ''');
 
       print("Creation de la table Workout log dans la base effectuée avec succès");
+    }
+
+    if (oldVersion < 5) {
+      // À exécuter lors de la création/mise à jour de ta table 'workouts' :
+      await db.execute('ALTER TABLE workouts ADD COLUMN assigned_days TEXT DEFAULT ""');
+      await db.execute('ALTER TABLE workouts ADD COLUMN has_cardio INTEGER DEFAULT 0');
     }
   }
 }
