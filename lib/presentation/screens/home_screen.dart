@@ -4,6 +4,8 @@ import 'package:forge/presentation/screens/historyCalendarScreen.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/workout_provider.dart';
 import 'exercise_list_screen.dart'; // Vu qu'ils sont dans le même dossier
+import '../widgets/motivation_banner.dart';
+import 'trophies_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -20,6 +22,7 @@ class _HomeScreenState extends State<HomeScreen> {
     const _WorkoutDashboardTab(),
     const ExerciseListScreen(),
     const HistoryCalendarScreen(),
+    const TrophiesScreen(),
   ];
 
   @override
@@ -27,6 +30,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       body: _tabs[_currentIndex],
       bottomNavigationBar: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed,
         currentIndex: _currentIndex,
         onTap: (index) {
           setState(() {
@@ -45,6 +49,10 @@ class _HomeScreenState extends State<HomeScreen> {
           BottomNavigationBarItem(
             icon: Icon(Icons.calendar_month), // <-- Icône calendrier
             label: 'Suivi',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.emoji_events),
+            label: 'Trophées',
           ),
         ],
       ),
@@ -66,7 +74,14 @@ class _WorkoutDashboardTab extends ConsumerWidget {
         title: const Text('Forge - Entraînements'),
         centerTitle: true,
       ),
-      body: workoutsAsync.when(
+      body: Column(
+        children: [
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 16, 16, 0),
+            child: MotivationBanner(),
+          ),
+          Expanded(
+            child: workoutsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, _) => Center(child: Text('Erreur : $err')),
         data: (workouts) {
@@ -163,6 +178,9 @@ class _WorkoutDashboardTab extends ConsumerWidget {
             },
           );
         },
+            ),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {

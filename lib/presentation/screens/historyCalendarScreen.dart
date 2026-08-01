@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../providers/history_provider.dart';
 import '../../../domain/models/workout_log.dart';
+import '../widgets/imc_card.dart';
 
 class HistoryCalendarScreen extends ConsumerWidget {
   const HistoryCalendarScreen({super.key});
@@ -30,6 +31,8 @@ class HistoryCalendarScreen extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                const ImcCard(),
+                const SizedBox(height: 24),
                 const Text(
                   'Cette semaine',
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),

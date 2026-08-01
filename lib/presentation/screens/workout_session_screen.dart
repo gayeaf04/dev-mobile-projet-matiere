@@ -7,6 +7,9 @@ import '../../domain/models/workout_session_state.dart';
 import '../providers/history_provider.dart';
 import '../providers/workout_provider.dart';
 import '../providers/workout_session_provider.dart';
+import '../providers/stats_provider.dart';
+import '../providers/trophies_provider.dart';
+import '../widgets/trophy_celebration.dart';
 
 class WorkoutSessionScreen extends ConsumerStatefulWidget {
   final Workout workout;
@@ -327,7 +330,13 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
                 // 1. Récupérer le repository via Riverpod (pense à importer ton repository provider si besoin)
                 final repository = ref.read(workoutRepositoryProvider);
 
-                // 2. Créer l'objet log en piochant dans widget.workout !
+                // 2. Mémoriser les trophées déjà débloqués AVANT cette séance
+                final unlockedBefore = (await ref.read(trophiesProvider.future))
+                    .where((trophy) => trophy.unlocked)
+                    .map((trophy) => trophy.id)
+                    .toSet();
+
+                // 3. Créer l'objet log en piochant dans widget.workout !
                 final log = WorkoutLog(
                   workoutId: int.tryParse(widget.workout.id.toString()) ?? 0,
                   workoutName: widget.workout.name,
@@ -335,13 +344,28 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
                   isCompleted: true,
                 );
 
-                // 3. Insérer le log dans la base SQLite
+                // 4. Insérer le log dans la base SQLite
                 await repository.insertWorkoutLog(log);
 
-                // 4. Invalider le provider pour forcer le calendrier à se recharger
+                // 5. Invalider les providers pour forcer le calendrier, le
+                // bandeau de motivation et les trophées à se recharger
                 ref.invalidate(weeklyHistoryProvider);
+                ref.invalidate(statsProvider);
+                ref.invalidate(trophiesProvider);
 
-                // 5. Retour au tableau de bord (avec context.pop() de GoRouter ou Navigator)
+                // 6. Détecter les trophées fraîchement débloqués par cette séance
+                final newlyUnlocked = (await ref.read(trophiesProvider.future))
+                    .where((trophy) =>
+                        trophy.unlocked && !unlockedBefore.contains(trophy.id))
+                    .toList();
+
+                if (!context.mounted) return;
+
+                // 7. Célébration s'il y a du nouveau, puis retour au tableau de bord
+                if (newlyUnlocked.isNotEmpty) {
+                  await showTrophyCelebration(context, newlyUnlocked);
+                }
+
                 if (context.mounted) {
                   context.pop();
                 }

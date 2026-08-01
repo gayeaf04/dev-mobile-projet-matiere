@@ -16,6 +16,19 @@ extension FitnessObjectiveExtension on FitnessObjective {
   }
 }
 
+enum BmiCategory { underweight, normal, overweight, obese }
+
+extension BmiCategoryLabel on BmiCategory {
+  String get label {
+    switch (this) {
+      case BmiCategory.underweight: return 'Insuffisance pondérale';
+      case BmiCategory.normal: return 'Corpulence normale';
+      case BmiCategory.overweight: return 'Surpoids';
+      case BmiCategory.obese: return 'Obésité';
+    }
+  }
+}
+
 @immutable
 class UserProfile {
   final String id;
@@ -50,6 +63,22 @@ class UserProfile {
       weight: weight ?? this.weight,
       objective: objective ?? this.objective,
     );
+  }
+
+  /// Indice de Masse Corporelle (IMC) = poids(kg) / taille(m)².
+  double get bmi {
+    final heightInMeters = height / 100;
+    if (heightInMeters <= 0) return 0;
+    return weight / (heightInMeters * heightInMeters);
+  }
+
+  /// Catégorie d'IMC selon les seuils de l'OMS.
+  BmiCategory get bmiCategory {
+    final value = bmi;
+    if (value < 18.5) return BmiCategory.underweight;
+    if (value < 25) return BmiCategory.normal;
+    if (value < 30) return BmiCategory.overweight;
+    return BmiCategory.obese;
   }
 
   @override

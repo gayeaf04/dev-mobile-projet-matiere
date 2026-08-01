@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/models/workout.dart';
 import '../../domain/models/workout_session_state.dart';
+import '../services/rest_alert.dart';
 
 // 🚀 La classe hérite simplement de Notifier<State> avec le type d'argument précisé dans le Provider
 class WorkoutSessionNotifier extends Notifier<WorkoutSessionState?> {
@@ -76,7 +77,12 @@ class WorkoutSessionNotifier extends Notifier<WorkoutSessionState?> {
 
       final remaining = state!.remainingRestSeconds;
       if (remaining > 1) {
-        state = state!.copyWith(remainingRestSeconds: remaining - 1);
+        final next = remaining - 1;
+        state = state!.copyWith(remainingRestSeconds: next);
+        // Tic discret (haptique) pendant le décompte final : 3, 2, 1…
+        if (next <= 3) {
+          ref.read(restAlertProvider).tick();
+        }
       } else {
         // Le chrono est arrivé à zéro -> On remet l'utilisateur au travail !
         timer.cancel();
@@ -84,6 +90,8 @@ class WorkoutSessionNotifier extends Notifier<WorkoutSessionState?> {
           status: SessionStatus.exercising,
           remainingRestSeconds: 0,
         );
+        // Vibration + son pour signaler la fin du repos
+        ref.read(restAlertProvider).restFinished();
       }
     });
   }

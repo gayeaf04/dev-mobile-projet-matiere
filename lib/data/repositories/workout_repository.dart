@@ -131,4 +131,16 @@ class WorkoutRepository {
 
     return List.generate(maps.length, (i) => WorkoutLog.fromMap(maps[i]));
   }
+
+// 3. Récupérer tout l'historique (nécessaire pour calculer la série de jours)
+  Future<List<WorkoutLog>> getAllWorkoutLogs() async {
+    final db = await _dbHelper.database;
+
+    final List<Map<String, dynamic>> maps = await db.query(
+      'workout_history',
+      orderBy: 'date DESC',
+    );
+
+    return List.generate(maps.length, (i) => WorkoutLog.fromMap(maps[i]));
+  }
 }
