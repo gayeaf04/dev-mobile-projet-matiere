@@ -52,8 +52,11 @@ class ProfileNotifier extends AsyncNotifier<UserProfile?> {
       // Mise à jour de l'état local interne (state) pour notifier instantanément l'UI
       state = AsyncData(profile);
     } catch (error, stackTrace) {
-      // Si ça crash (rare avec SQLite mais bonne pratique), on pousse l'erreur dans l'état
+      // Si ça crash (rare avec SQLite mais bonne pratique), on pousse l'erreur dans l'état...
       state = AsyncValue.error(error, stackTrace);
+      // ...et on la propage pour que l'écran appelant (formulaire) puisse
+      // afficher un message au lieu de croire à tort que ça a réussi.
+      rethrow;
     }
   }
 }

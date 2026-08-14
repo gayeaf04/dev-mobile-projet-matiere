@@ -559,63 +559,81 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
               onPressed: () async {
-                // 1. Récupérer le repository via Riverpod (pense à importer ton repository provider si besoin)
-                final repository = ref.read(workoutRepositoryProvider);
+                try {
+                  // 1. Récupérer le repository via Riverpod (pense à importer ton repository provider si besoin)
+                  final repository = ref.read(workoutRepositoryProvider);
 
-                // 2. Mémoriser les trophées déjà débloqués AVANT cette séance
-                final unlockedBefore = (await ref.read(trophiesProvider.future))
-                    .where((trophy) => trophy.unlocked)
-                    .map((trophy) => trophy.id)
-                    .toSet();
+                  // 2. Mémoriser les trophées déjà débloqués AVANT cette séance
+                  final unlockedBefore =
+                      (await ref.read(trophiesProvider.future))
+                          .where((trophy) => trophy.unlocked)
+                          .map((trophy) => trophy.id)
+                          .toSet();
 
-                // 3. Créer l'objet log en piochant dans widget.workout !
-                final log = WorkoutLog(
-                  workoutId: int.tryParse(widget.workout.id.toString()) ?? 0,
-                  workoutName: widget.workout.name,
-                  date: DateTime.now(),
-                  isCompleted: true,
-                );
-
-                // 4. Insérer le log dans la base SQLite et récupérer son id
-                final historyId = await repository.insertWorkoutLog(log);
-
-                // 4bis. Enregistrer les séries réalisées (poids × reps) en les
-                // rattachant à cette séance pour le suivi de la progression
-                final performedSets =
-                    ref.read(workoutSessionProvider)?.performedSets ??
-                        const [];
-                if (performedSets.isNotEmpty) {
-                  await repository.insertSetLogs(
-                    performedSets
-                        .map((s) => s.copyWith(historyId: historyId))
-                        .toList(),
+                  // 3. Créer l'objet log en piochant dans widget.workout !
+                  final log = WorkoutLog(
+                    workoutId: int.tryParse(widget.workout.id.toString()) ?? 0,
+                    workoutName: widget.workout.name,
+                    date: DateTime.now(),
+                    isCompleted: true,
                   );
-                }
 
-                // 5. Invalider les providers pour forcer le calendrier, le
-                // bandeau de motivation, les trophées et la progression à se
-                // recharger
-                ref.invalidate(weeklyHistoryProvider);
-                ref.invalidate(statsProvider);
-                ref.invalidate(trophiesProvider);
-                ref.invalidate(exerciseProgressionProvider);
-                ref.invalidate(lastPerformanceProvider);
+                  // 4. Insérer le log dans la base SQLite et récupérer son id
+                  final historyId = await repository.insertWorkoutLog(log);
 
-                // 6. Détecter les trophées fraîchement débloqués par cette séance
-                final newlyUnlocked = (await ref.read(trophiesProvider.future))
-                    .where((trophy) =>
-                        trophy.unlocked && !unlockedBefore.contains(trophy.id))
-                    .toList();
+                  // 4bis. Enregistrer les séries réalisées (poids × reps) en les
+                  // rattachant à cette séance pour le suivi de la progression
+                  final performedSets =
+                      ref.read(workoutSessionProvider)?.performedSets ??
+                          const [];
+                  if (performedSets.isNotEmpty) {
+                    await repository.insertSetLogs(
+                      performedSets
+                          .map((s) => s.copyWith(historyId: historyId))
+                          .toList(),
+                    );
+                  }
 
-                if (!context.mounted) return;
+                  // 5. Invalider les providers pour forcer le calendrier, le
+                  // bandeau de motivation, les trophées et la progression à se
+                  // recharger
+                  ref.invalidate(weeklyHistoryProvider);
+                  ref.invalidate(statsProvider);
+                  ref.invalidate(trophiesProvider);
+                  ref.invalidate(exerciseProgressionProvider);
+                  ref.invalidate(lastPerformanceProvider);
 
-                // 7. Célébration s'il y a du nouveau, puis retour au tableau de bord
-                if (newlyUnlocked.isNotEmpty) {
-                  await showTrophyCelebration(context, newlyUnlocked);
-                }
+                  // 6. Détecter les trophées fraîchement débloqués par cette séance
+                  final newlyUnlocked =
+                      (await ref.read(trophiesProvider.future))
+                          .where((trophy) =>
+                              trophy.unlocked &&
+                              !unlockedBefore.contains(trophy.id))
+                          .toList();
 
-                if (context.mounted) {
-                  context.pop();
+                  if (!context.mounted) return;
+
+                  // 7. Célébration s'il y a du nouveau, puis retour au tableau de bord
+                  if (newlyUnlocked.isNotEmpty) {
+                    await showTrophyCelebration(context, newlyUnlocked);
+                  }
+
+                  if (context.mounted) {
+                    context.pop();
+                  }
+                } catch (error) {
+                  // La séance n'a pas pu être enregistrée en base : on informe
+                  // l'utilisateur et on le laisse réessayer plutôt que de
+                  // quitter l'écran en silence avec ses données perdues.
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Impossible d\'enregistrer la séance : $error',
+                      ),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
                 }
               },
               child: const Text('RETOUR ACCUEIL', style: TextStyle(fontWeight: FontWeight.bold)),

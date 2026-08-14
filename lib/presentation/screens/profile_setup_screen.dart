@@ -77,7 +77,18 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
         objective: _selectedObjective,
       );
 
-      await ref.read(profileProvider.notifier).updateProfile(newProfile);
+      try {
+        await ref.read(profileProvider.notifier).updateProfile(newProfile);
+      } catch (error) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Impossible d\'enregistrer le profil : $error'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
 
       if (!mounted) return;
 
