@@ -20,7 +20,7 @@ class DatabaseHelper {
     final path = join(databasePath, 'forge.db');
     return await openDatabase(
       path,
-      version: 5,
+      version: 6,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -86,6 +86,20 @@ class DatabaseHelper {
     // À exécuter lors de la création/mise à jour de ta table 'workouts' :
     await db.execute('ALTER TABLE workouts ADD COLUMN assigned_days TEXT DEFAULT ""');
     await db.execute('ALTER TABLE workouts ADD COLUMN has_cardio INTEGER DEFAULT 0');
+
+    // Historique détaillé des séries réalisées (suivi de la progression)
+    await db.execute('''
+    CREATE TABLE set_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      history_id INTEGER,
+      exercise_id TEXT NOT NULL,
+      exercise_name TEXT NOT NULL,
+      set_number INTEGER NOT NULL,
+      weight REAL NOT NULL,
+      reps INTEGER NOT NULL,
+      date TEXT NOT NULL
+    )
+  ''');
 
     // Injection des exercices par défaut
     await _prepopulateExercises(db);
@@ -155,6 +169,23 @@ class DatabaseHelper {
       // À exécuter lors de la création/mise à jour de ta table 'workouts' :
       await db.execute('ALTER TABLE workouts ADD COLUMN assigned_days TEXT DEFAULT ""');
       await db.execute('ALTER TABLE workouts ADD COLUMN has_cardio INTEGER DEFAULT 0');
+    }
+
+    if (oldVersion < 6) {
+      // Nouvelle table pour le suivi des performances série par série
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS set_logs (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          history_id INTEGER,
+          exercise_id TEXT NOT NULL,
+          exercise_name TEXT NOT NULL,
+          set_number INTEGER NOT NULL,
+          weight REAL NOT NULL,
+          reps INTEGER NOT NULL,
+          date TEXT NOT NULL
+        )
+      ''');
+      print("🚀 MIGRATION REUSSIE : table set_logs ajoutée (suivi des performances).");
     }
   }
 }

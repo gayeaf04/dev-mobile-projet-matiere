@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../domain/models/set_log.dart';
 import '../../domain/models/workout.dart';
 import '../../domain/models/workout_log.dart';
 import '../../domain/models/workout_session_state.dart';
 import '../providers/history_provider.dart';
+import '../providers/progression_provider.dart';
 import '../providers/workout_provider.dart';
 import '../providers/workout_session_provider.dart';
 import '../providers/stats_provider.dart';
@@ -22,9 +24,21 @@ class WorkoutSessionScreen extends ConsumerStatefulWidget {
 }
 
 class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
+  // Champs de saisie de la performance de la série en cours
+  final TextEditingController _weightController = TextEditingController();
+  final TextEditingController _repsController = TextEditingController();
+  // Signature "exo-série" pour ne pré-remplir qu'au changement de série
+  String? _lastSetSignature;
+
   @override
   void initState() {
     super.initState();
+    // On pré-remplit l'objectif de répétitions de la toute première série
+    final exercises = widget.workout.exercises;
+    if (exercises.isNotEmpty) {
+      _repsController.text = exercises.first.reps.toString();
+      _lastSetSignature = '0-0';
+    }
     // ⚡ On initialise les données de la séance dès l'ouverture de l'écran
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(workoutSessionProvider.notifier).initSession(widget.workout);
@@ -34,11 +48,48 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
   @override
   void dispose() {
     // 🧼 On nettoie le timer si l'utilisateur quitte brusquement l'écran
+    _weightController.dispose();
+    _repsController.dispose();
     super.dispose();
+  }
+
+  // Formate une charge en retirant les décimales inutiles (60.0 -> "60").
+  String _formatWeight(double weight) => weight == weight.roundToDouble()
+      ? weight.toStringAsFixed(0)
+      : weight.toString();
+
+  // Pré-remplit les champs quand on passe à une nouvelle série :
+  //  - répétitions : l'objectif de l'exercice ;
+  //  - charge : celle de la dernière série réalisée sur ce même exercice
+  //    pendant la séance (report de charge / surcharge progressive).
+  void _syncInputsForCurrentSet(WorkoutSessionState session) {
+    final current = session.currentWorkoutExercise;
+    if (current == null) return;
+
+    final signature =
+        '${session.currentExerciseIndex}-${session.currentSetIndex}';
+    if (signature == _lastSetSignature) return;
+    _lastSetSignature = signature;
+
+    _repsController.text = current.reps.toString();
+
+    SetLog? priorSet;
+    for (final s in session.performedSets) {
+      if (s.exerciseId == current.exercise.id) priorSet = s;
+    }
+    _weightController.text =
+        priorSet != null ? _formatWeight(priorSet.weight) : '';
   }
 
   @override
   Widget build(BuildContext context) {
+    // Pré-remplissage des champs à chaque changement de série
+    ref.listen<WorkoutSessionState?>(workoutSessionProvider, (previous, next) {
+      if (next != null && next.status == SessionStatus.exercising) {
+        _syncInputsForCurrentSet(next);
+      }
+    });
+
     final sessionState = ref.watch(workoutSessionProvider);
 
     // Sécurité le temps que l'initSession s'exécute au premier frame
@@ -226,6 +277,10 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
                       ],
                     ),
                   ),
+                  const SizedBox(height: 20),
+
+                  // 📊 Saisie de la performance réalisée (poids × reps)
+                  _buildPerformanceInputs(ref, exercise.id),
                   const SizedBox(height: 8),
                 ],
               ),
@@ -241,7 +296,16 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
-            onPressed: () => ref.read(workoutSessionProvider.notifier).validateSet(),
+            onPressed: () {
+              final weight =
+                  double.tryParse(_weightController.text.replaceAll(',', '.')) ??
+                      0;
+              final reps = int.tryParse(_repsController.text) ??
+                  currentWorkoutExercise.reps;
+              ref
+                  .read(workoutSessionProvider.notifier)
+                  .validateSet(weight: weight, reps: reps);
+            },
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -258,6 +322,68 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  // Bloc de saisie de la performance : rappel de la dernière fois + champs
+  // charge (kg) et répétitions réalisées.
+  Widget _buildPerformanceInputs(WidgetRef ref, String exerciseId) {
+    final lastPerf = ref.watch(lastPerformanceProvider(exerciseId));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        lastPerf.maybeWhen(
+          data: (last) => last == null
+              ? const SizedBox.shrink()
+              : Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Center(
+                    child: ActionChip(
+                      avatar: const Icon(Icons.history, size: 18),
+                      label: Text(
+                        'Dernière fois : ${_formatWeight(last.weight)} kg × ${last.reps}',
+                      ),
+                      onPressed: () {
+                        _weightController.text = _formatWeight(last.weight);
+                        _repsController.text = last.reps.toString();
+                      },
+                    ),
+                  ),
+                ),
+          orElse: () => const SizedBox.shrink(),
+        ),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _weightController,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                textAlign: TextAlign.center,
+                decoration: const InputDecoration(
+                  labelText: 'Charge (kg)',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.fitness_center),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: TextField(
+                controller: _repsController,
+                keyboardType: TextInputType.number,
+                textAlign: TextAlign.center,
+                decoration: const InputDecoration(
+                  labelText: 'Répétitions',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.repeat),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
@@ -379,14 +505,30 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
                   isCompleted: true,
                 );
 
-                // 4. Insérer le log dans la base SQLite
-                await repository.insertWorkoutLog(log);
+                // 4. Insérer le log dans la base SQLite et récupérer son id
+                final historyId = await repository.insertWorkoutLog(log);
+
+                // 4bis. Enregistrer les séries réalisées (poids × reps) en les
+                // rattachant à cette séance pour le suivi de la progression
+                final performedSets =
+                    ref.read(workoutSessionProvider)?.performedSets ??
+                        const [];
+                if (performedSets.isNotEmpty) {
+                  await repository.insertSetLogs(
+                    performedSets
+                        .map((s) => s.copyWith(historyId: historyId))
+                        .toList(),
+                  );
+                }
 
                 // 5. Invalider les providers pour forcer le calendrier, le
-                // bandeau de motivation et les trophées à se recharger
+                // bandeau de motivation, les trophées et la progression à se
+                // recharger
                 ref.invalidate(weeklyHistoryProvider);
                 ref.invalidate(statsProvider);
                 ref.invalidate(trophiesProvider);
+                ref.invalidate(exerciseProgressionProvider);
+                ref.invalidate(lastPerformanceProvider);
 
                 // 6. Détecter les trophées fraîchement débloqués par cette séance
                 final newlyUnlocked = (await ref.read(trophiesProvider.future))

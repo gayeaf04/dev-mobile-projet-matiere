@@ -1,3 +1,4 @@
+import 'set_log.dart';
 import 'workout.dart';
 
 enum SessionStatus { ready, exercising, resting, completed }
@@ -8,6 +9,7 @@ class WorkoutSessionState {
   final int currentSetIndex;      // Index de la série en cours (0 pour la 1ère série)
   final SessionStatus status;     // Statut actuel de la séance
   final int remainingRestSeconds; // Temps restant pour le chrono de repos
+  final List<SetLog> performedSets; // Séries réalisées (poids × reps) durant la séance
 
   const WorkoutSessionState({
     required this.workout,
@@ -15,6 +17,7 @@ class WorkoutSessionState {
     this.currentSetIndex = 0,
     this.status = SessionStatus.ready,
     this.remainingRestSeconds = 0,
+    this.performedSets = const [],
   });
 
   // Raccourci pour récupérer l'exercice actuel de manière sécurisée
@@ -31,6 +34,7 @@ class WorkoutSessionState {
     int? currentSetIndex,
     SessionStatus? status,
     int? remainingRestSeconds,
+    List<SetLog>? performedSets,
   }) {
     return WorkoutSessionState(
       workout: workout ?? this.workout,
@@ -38,6 +42,7 @@ class WorkoutSessionState {
       currentSetIndex: currentSetIndex ?? this.currentSetIndex,
       status: status ?? this.status,
       remainingRestSeconds: remainingRestSeconds ?? this.remainingRestSeconds,
+      performedSets: performedSets ?? this.performedSets,
     );
   }
 }

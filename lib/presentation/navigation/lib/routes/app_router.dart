@@ -8,8 +8,10 @@ import 'package:forge/presentation/screens/home_screen.dart';
 import 'package:forge/presentation/screens/profile_setup_screen.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../domain/models/exercise.dart';
 import '../../../../domain/models/workout.dart';
 import '../../../screens/create_workout_screen.dart';
+import '../../../screens/exercise_detail_screen.dart';
 import '../../../screens/workout_session_screen.dart';
 
 final appRouterImpl = Provider<GoRouter>((ref) {
@@ -69,6 +71,15 @@ final appRouterImpl = Provider<GoRouter>((ref) {
             // On extrait l'objet Workout passé lors du clic
             final workout = state.extra as Workout;
             return WorkoutSessionScreen(workout: workout);
+          },
+        ),
+
+        GoRoute(
+          path: '/exercise-detail',
+          builder: (context, state) {
+            // On extrait l'exercice dont on veut voir la progression
+            final exercise = state.extra as Exercise;
+            return ExerciseDetailScreen(exercise: exercise);
           },
         ),
       ],

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../domain/models/set_log.dart';
 import '../../domain/models/workout.dart';
 import '../../domain/models/workout_session_state.dart';
 import '../services/rest_alert.dart';
@@ -33,26 +34,41 @@ class WorkoutSessionNotifier extends Notifier<WorkoutSessionState?> {
     state = state!.copyWith(status: SessionStatus.exercising);
   }
 
-  // Valider une série (clic sur le bouton "Série validée")
-  void validateSet() {
+  // Valider une série (clic sur le bouton "Série validée") en enregistrant la
+  // performance réalisée (charge et répétitions).
+  void validateSet({required double weight, required int reps}) {
     final currentState = state;
     if (currentState == null || currentState.currentWorkoutExercise == null) return;
 
     final currentExercise = currentState.currentWorkoutExercise!;
 
+    // On mémorise la série qui vient d'être réalisée.
+    final performed = SetLog(
+      exerciseId: currentExercise.exercise.id,
+      exerciseName: currentExercise.exercise.name,
+      setNumber: currentState.currentSetIndex + 1,
+      weight: weight,
+      reps: reps,
+      date: DateTime.now(),
+    );
+    state = currentState.copyWith(
+      performedSets: [...currentState.performedSets, performed],
+    );
+    final updatedState = state!;
+
     // Étape A : Est-ce qu'il reste des séries dans l'exercice actuel ?
-    if (currentState.currentSetIndex + 1 < currentExercise.sets) {
+    if (updatedState.currentSetIndex + 1 < currentExercise.sets) {
       // Oui -> On lance le chrono de repos pour la série suivante
-      _startRestTimeout(currentExercise.restSeconds, currentState.currentSetIndex + 1, currentState.currentExerciseIndex);
+      _startRestTimeout(currentExercise.restSeconds, updatedState.currentSetIndex + 1, updatedState.currentExerciseIndex);
     } else {
       // Non -> On a fini toutes les séries de cet exercice. Reste-t-il un autre exercice ?
-      if (currentState.currentExerciseIndex + 1 < currentState.workout.exercises.length) {
+      if (updatedState.currentExerciseIndex + 1 < updatedState.workout.exercises.length) {
         // Oui -> On passe à l'exercice suivant
-        _startRestTimeout(currentExercise.restSeconds, 0, currentState.currentExerciseIndex + 1);
+        _startRestTimeout(currentExercise.restSeconds, 0, updatedState.currentExerciseIndex + 1);
       } else {
         // Non -> L'entraînement complet est fini !
         _cancelTimer();
-        state = currentState.copyWith(status: SessionStatus.completed);
+        state = updatedState.copyWith(status: SessionStatus.completed);
       }
     }
   }

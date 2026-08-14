@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../providers/exercise_provider.dart';
 import '../../../domain/models/exercise.dart';
 import '../widgets/exercise_image.dart';
@@ -147,6 +148,8 @@ class _ExerciseListScreenState extends ConsumerState<ExerciseListScreen> {
                       ),
                       child: ListTile(
                         contentPadding: const EdgeInsets.all(16.0),
+                        onTap: () => context.push('/exercise-detail',
+                            extra: exercise),
                         leading: ExerciseThumbnail(exercise: exercise),
                         title: Text(
                           exercise.name,

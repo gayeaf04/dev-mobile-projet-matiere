@@ -64,7 +64,7 @@ void main() {
       final notifier = container.read(workoutSessionProvider.notifier);
       notifier.initSession(_workout(restSeconds: 3));
       notifier.startSession();
-      notifier.validateSet(); // -> repos de 3 s avant la série suivante
+      notifier.validateSet(weight: 50, reps: 10); // -> repos de 3 s avant la série suivante
 
       expect(
         container.read(workoutSessionProvider)!.status,
@@ -92,7 +92,7 @@ void main() {
       final notifier = container.read(workoutSessionProvider.notifier);
       notifier.initSession(_workout(restSeconds: 3));
       notifier.startSession();
-      notifier.validateSet(); // -> repos
+      notifier.validateSet(weight: 50, reps: 10); // -> repos
       notifier.skipRest(); // l'utilisateur saute le repos
 
       async.elapse(const Duration(seconds: 5));

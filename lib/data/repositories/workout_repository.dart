@@ -1,5 +1,6 @@
 import 'package:sqflite/sqflite.dart';
 import '../../domain/models/exercise.dart';
+import '../../domain/models/set_log.dart';
 import '../../domain/models/workout.dart';
 import '../../domain/models/workout_log.dart';
 import '../local/database_helper.dart';
@@ -105,10 +106,10 @@ class WorkoutRepository {
 
   // --- À AJOUTER DANS TA CLASSE WORKOUTREPOSITORY ---
 
-// 1. Sauvegarder une séance validée
-  Future<void> insertWorkoutLog(WorkoutLog log) async {
+// 1. Sauvegarder une séance validée. Renvoie l'id (history_id) créé.
+  Future<int> insertWorkoutLog(WorkoutLog log) async {
     final db = await _dbHelper.database; // Utilise le nom de ta variable de BDD interne (ex: _db, _database)
-    await db.insert(
+    return await db.insert(
       'workout_history',
       log.toMap(),
       conflictAlgorithm: ConflictAlgorithm.replace,
@@ -142,5 +143,49 @@ class WorkoutRepository {
     );
 
     return List.generate(maps.length, (i) => WorkoutLog.fromMap(maps[i]));
+  }
+
+  // --- SUIVI DES PERFORMANCES (séries) ---
+
+  // Enregistre en bloc les séries réalisées pendant une séance.
+  Future<void> insertSetLogs(List<SetLog> logs) async {
+    if (logs.isEmpty) return;
+    final db = await _dbHelper.database;
+    await db.transaction((txn) async {
+      for (final log in logs) {
+        await txn.insert(
+          'set_logs',
+          log.toMap(),
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+    });
+  }
+
+  // Toutes les séries d'un exercice (les plus anciennes d'abord) pour la
+  // courbe de progression.
+  Future<List<SetLog>> getSetLogsForExercise(String exerciseId) async {
+    final db = await _dbHelper.database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'set_logs',
+      where: 'exercise_id = ?',
+      whereArgs: [exerciseId],
+      orderBy: 'date ASC, id ASC',
+    );
+    return List.generate(maps.length, (i) => SetLog.fromMap(maps[i]));
+  }
+
+  // Dernière série enregistrée pour un exercice (pour pré-remplir la charge).
+  Future<SetLog?> getLastSetLogForExercise(String exerciseId) async {
+    final db = await _dbHelper.database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'set_logs',
+      where: 'exercise_id = ?',
+      whereArgs: [exerciseId],
+      orderBy: 'id DESC',
+      limit: 1,
+    );
+    if (maps.isEmpty) return null;
+    return SetLog.fromMap(maps.first);
   }
 }
