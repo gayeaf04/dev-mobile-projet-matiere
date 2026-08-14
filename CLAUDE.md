@@ -16,9 +16,9 @@ comments French to match.
 - Run a single test file: `flutter test test/rest_timer_test.dart`
 - Run a single test by name: `flutter test --name "part of the test description"`
 
-Note: `test/widget_test.dart` is still the default Flutter counter template and does not match this
-app — it fails as-is. Don't treat it as a baseline; the real coverage is in the other `test/*.dart`
-files (e.g. `exercise_detail_screen_test.dart`, `session_capture_test.dart`, `set_log_test.dart`).
+`test/widget_test.dart` holds app-level smoke tests for `MyApp` (profile-setup gate, home dashboard
+with all 5 tabs), overriding `userRepositoryProvider`/`workoutRepositoryProvider` with fakes rather
+than a real SQLite database — see the `_pumpApp` helper for the override pattern.
 
 ## Architecture
 
@@ -34,8 +34,7 @@ Clean architecture in `lib/`, three layers. Data flows one direction:
   Repositories take an optional `DatabaseHelper` for testability and default to the singleton.
 - `presentation/providers/` — Riverpod state (see conventions below).
 - `presentation/screens/` — `ConsumerWidget` / `ConsumerStatefulWidget` UI.
-- `presentation/navigation/lib/routes/app_router.dart` — the go_router config. (Yes, the path has a
-  nested `lib/`; it is imported as `package:forge/presentation/navigation/lib/routes/app_router.dart`.)
+- `presentation/navigation/routes/app_router.dart` — the go_router config.
 - `lib/core/` — reserved/empty.
 
 ## Riverpod (flutter_riverpod v3)
@@ -60,7 +59,7 @@ Clean architecture in `lib/`, three layers. Data flows one direction:
 
 - **Schema changes require three coordinated edits** in `database_helper.dart`: bump `version` in
   `_initDatabase`, add the create statement to `_onCreate`, and add a matching
-  `if (oldVersion < N) { ... }` block to `_onUpgrade`. Current version is **6**.
+  `if (oldVersion < N) { ... }` block to `_onUpgrade`. Current version is **8**.
 - Enums are stored as strings via `enumValue.name` and read back with `MyEnum.values.byName(str)`.
 - `DateTime` is stored with `toIso8601String()`. Exception: `workout_history.date` is a `YYYY-MM-DD`
   string only (via `.split('T')[0]`).

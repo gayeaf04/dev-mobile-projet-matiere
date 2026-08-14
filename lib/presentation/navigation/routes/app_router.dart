@@ -6,11 +6,11 @@ import 'package:forge/presentation/screens/home_screen.dart';
 import 'package:forge/presentation/screens/profile_setup_screen.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../domain/models/exercise.dart';
-import '../../../../domain/models/workout.dart';
-import '../../../screens/create_workout_screen.dart';
-import '../../../screens/exercise_detail_screen.dart';
-import '../../../screens/workout_session_screen.dart';
+import '../../../domain/models/exercise.dart';
+import '../../../domain/models/workout.dart';
+import '../../screens/create_workout_screen.dart';
+import '../../screens/exercise_detail_screen.dart';
+import '../../screens/workout_session_screen.dart';
 
 final appRouterImpl = Provider<GoRouter>((ref) {
 

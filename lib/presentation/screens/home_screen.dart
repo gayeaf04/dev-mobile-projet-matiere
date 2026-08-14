@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:forge/presentation/screens/historyCalendarScreen.dart';
+import 'package:forge/presentation/screens/history_calendar_screen.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/profile_provider.dart';
 import '../providers/workout_provider.dart';
