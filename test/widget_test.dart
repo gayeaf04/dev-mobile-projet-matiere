@@ -1,30 +1,73 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:forge/data/repositories/user_repository.dart';
+import 'package:forge/data/repositories/workout_repository.dart';
+import 'package:forge/domain/models/user_profile.dart';
+import 'package:forge/domain/models/workout.dart';
+import 'package:forge/domain/models/workout_log.dart';
 import 'package:forge/main.dart';
+import 'package:forge/presentation/providers/profile_provider.dart';
+import 'package:forge/presentation/providers/workout_provider.dart';
+
+class _FakeUserRepository extends UserRepository {
+  final UserProfile? profile;
+  _FakeUserRepository(this.profile);
+
+  @override
+  Future<UserProfile?> getProfile() async => profile;
+}
+
+class _FakeWorkoutRepository extends WorkoutRepository {
+  @override
+  Future<List<Workout>> getAllWorkouts() async => [];
+
+  @override
+  Future<List<WorkoutLog>> getAllWorkoutLogs() async => [];
+}
+
+Future<void> _pumpApp(WidgetTester tester, UserProfile? profile) async {
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        userRepositoryProvider.overrideWithValue(_FakeUserRepository(profile)),
+        workoutRepositoryProvider.overrideWithValue(_FakeWorkoutRepository()),
+      ],
+      child: const MyApp(),
+    ),
+  );
+  await tester.pumpAndSettle();
+}
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('sans profil enregistré, l\'app force la création du profil',
+      (tester) async {
+    await _pumpApp(tester, null);
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    expect(find.text('Créer mon Profil Forge'), findsOneWidget);
+    expect(find.text('Forger mon profil'), findsOneWidget);
+  });
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+  testWidgets(
+      'avec un profil existant, l\'app affiche le tableau de bord et les 5 onglets',
+      (tester) async {
+    await _pumpApp(
+      tester,
+      const UserProfile(
+        id: 'test',
+        name: 'Test',
+        age: 30,
+        height: 180,
+        weight: 75,
+        objective: FitnessObjective.maintenance,
+      ),
+    );
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    expect(find.text('Forge - Entraînements'), findsOneWidget);
+    expect(find.text('Mes Séances'), findsOneWidget);
+    expect(find.text('Exercices'), findsOneWidget);
+    expect(find.text('Suivi'), findsOneWidget);
+    expect(find.text('Trophées'), findsOneWidget);
+    expect(find.text('Profil'), findsOneWidget);
   });
 }

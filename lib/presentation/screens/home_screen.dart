@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forge/presentation/screens/historyCalendarScreen.dart';
 import 'package:go_router/go_router.dart';
+import '../providers/profile_provider.dart';
 import '../providers/workout_provider.dart';
 import 'exercise_list_screen.dart'; // Vu qu'ils sont dans le même dossier
+import 'profile_setup_screen.dart';
 import '../widgets/motivation_banner.dart';
 import 'trophies_screen.dart';
 
@@ -17,12 +19,13 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
 
-  // Liste des deux onglets principaux
+  // Liste des onglets principaux
   final List<Widget> _tabs = [
     const _WorkoutDashboardTab(),
     const ExerciseListScreen(),
     const HistoryCalendarScreen(),
     const TrophiesScreen(),
+    const _ProfileTab(),
   ];
 
   @override
@@ -53,6 +56,10 @@ class _HomeScreenState extends State<HomeScreen> {
           BottomNavigationBarItem(
             icon: Icon(Icons.emoji_events),
             label: 'Trophées',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person),
+            label: 'Profil',
           ),
         ],
       ),
@@ -148,7 +155,7 @@ class _WorkoutDashboardTab extends ConsumerWidget {
                                 ],
                               ),
                             );
-                          }).toList(), // Le .toList() reste ici mais TOUT est confiné dans les crochets de 'children'
+                          }),
 
                           // 2. Maintenant, l'espacement et le bouton font partie intégrante de la même liste !
                           const SizedBox(height: 24),
@@ -189,6 +196,27 @@ class _WorkoutDashboardTab extends ConsumerWidget {
         },
         child: const Icon(Icons.add),
       ),
+    );
+  }
+}
+
+// --- ONGLET PROFIL : affiche le formulaire de modification pré-rempli ---
+class _ProfileTab extends ConsumerWidget {
+  const _ProfileTab();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profileAsync = ref.watch(profileProvider);
+
+    return profileAsync.when(
+      loading: () => const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      ),
+      error: (err, stack) => Scaffold(
+        body: Center(child: Text('Erreur lors du chargement du profil : $err')),
+      ),
+      // Le redirect de app_router garantit qu'on a déjà un profil ici.
+      data: (profile) => ProfileSetupScreen(existingProfile: profile),
     );
   }
 }

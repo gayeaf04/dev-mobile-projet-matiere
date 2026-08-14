@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../providers/history_provider.dart';
-import '../../../domain/models/workout_log.dart';
 import '../widgets/imc_card.dart';
 
 class HistoryCalendarScreen extends ConsumerWidget {

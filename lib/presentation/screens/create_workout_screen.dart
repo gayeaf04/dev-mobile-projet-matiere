@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/exercise_provider.dart';
 import '../providers/workout_provider.dart';
-import '../../../domain/models/exercise.dart';
 import '../widgets/exercise_image.dart';
 
 class CreateWorkoutScreen extends ConsumerStatefulWidget {

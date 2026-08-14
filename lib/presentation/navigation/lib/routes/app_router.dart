@@ -1,9 +1,7 @@
 
 
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forge/presentation/providers/profile_provider.dart';
-import 'package:forge/presentation/screens/exercise_list_screen.dart';
 import 'package:forge/presentation/screens/home_screen.dart';
 import 'package:forge/presentation/screens/profile_setup_screen.dart';
 import 'package:go_router/go_router.dart';
@@ -58,6 +56,14 @@ final appRouterImpl = Provider<GoRouter>((ref) {
         GoRoute(
           path: '/profile-setup',
           builder: (context, state) => const ProfileSetupScreen(),
+        ),
+
+        GoRoute(
+          path: '/profile-edit',
+          builder: (context, state) {
+            // On pré-remplit avec le profil actuellement enregistré
+            return ProfileSetupScreen(existingProfile: profileAsync.value);
+          },
         ),
 
         GoRoute(

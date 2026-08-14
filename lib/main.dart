@@ -2,9 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forge/presentation/navigation/lib/routes/app_router.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'package:go_router/go_router.dart';
-// Note : Pense à importer ton fichier de routage dès qu'il sera créé !
-// import 'presentation/navigation/app_router.dart';
 
 void main() async {
   // ⚡ Indispensable pour s'assurer que les services Flutter sont prêts avant l'initialisation asynchrone

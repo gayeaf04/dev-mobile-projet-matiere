@@ -20,7 +20,7 @@ class DatabaseHelper {
     final path = join(databasePath, 'forge.db');
     return await openDatabase(
       path,
-      version: 6,
+      version: 8,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -98,6 +98,16 @@ class DatabaseHelper {
       weight REAL NOT NULL,
       reps INTEGER NOT NULL,
       date TEXT NOT NULL
+    )
+  ''');
+
+    // Historique du poids de l'utilisateur (courbe d'évolution). Un point par
+    // enregistrement de profil (date+heure), pas une seule valeur par jour.
+    await db.execute('''
+    CREATE TABLE weight_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      date TEXT NOT NULL,
+      weight REAL NOT NULL
     )
   ''');
 
@@ -186,6 +196,35 @@ class DatabaseHelper {
         )
       ''');
       print("🚀 MIGRATION REUSSIE : table set_logs ajoutée (suivi des performances).");
+    }
+
+    if (oldVersion < 7) {
+      // Historique du poids pour la courbe d'évolution du profil
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS weight_logs (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          date TEXT NOT NULL UNIQUE,
+          weight REAL NOT NULL
+        )
+      ''');
+      print("🚀 MIGRATION REUSSIE : table weight_logs ajoutée (évolution du poids).");
+    }
+
+    if (oldVersion < 8) {
+      // On retire la contrainte UNIQUE(date) : chaque modification de profil
+      // doit créer un nouveau point (date+heure), pas remplacer celui du jour.
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS weight_logs_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          date TEXT NOT NULL,
+          weight REAL NOT NULL
+        )
+      ''');
+      await db.execute(
+          'INSERT INTO weight_logs_new (date, weight) SELECT date, weight FROM weight_logs');
+      await db.execute('DROP TABLE weight_logs');
+      await db.execute('ALTER TABLE weight_logs_new RENAME TO weight_logs');
+      print("🚀 MIGRATION REUSSIE : weight_logs autorise désormais plusieurs points par jour.");
     }
   }
 }

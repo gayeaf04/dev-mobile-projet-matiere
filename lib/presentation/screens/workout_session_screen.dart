@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../domain/models/exercise.dart';
 import '../../domain/models/set_log.dart';
 import '../../domain/models/workout.dart';
 import '../../domain/models/workout_log.dart';
@@ -29,6 +30,8 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
   final TextEditingController _repsController = TextEditingController();
   // Signature "exo-série" pour ne pré-remplir qu'au changement de série
   String? _lastSetSignature;
+  // Message d'erreur affiché si on tente de valider sans avoir renseigné la charge
+  String? _weightErrorText;
 
   @override
   void initState() {
@@ -61,24 +64,40 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
   // Pré-remplit les champs quand on passe à une nouvelle série :
   //  - répétitions : l'objectif de l'exercice ;
   //  - charge : celle de la dernière série réalisée sur ce même exercice
-  //    pendant la séance (report de charge / surcharge progressive).
-  void _syncInputsForCurrentSet(WorkoutSessionState session) {
+  //    pendant la séance (report de charge / surcharge progressive), sinon
+  //    le record personnel (charge max jamais réalisée) sur cet exercice.
+  // Appelée à la fois au changement de série et dès que le record personnel
+  // arrive (chargement asynchrone) : dans ce dernier cas on ne remplit que
+  // si le champ est encore vide, pour ne jamais écraser une saisie en cours.
+  void _syncInputsForCurrentSet(
+    WorkoutSessionState session, {
+    SetLog? heaviestEver,
+  }) {
     final current = session.currentWorkoutExercise;
     if (current == null) return;
 
     final signature =
         '${session.currentExerciseIndex}-${session.currentSetIndex}';
-    if (signature == _lastSetSignature) return;
-    _lastSetSignature = signature;
-
-    _repsController.text = current.reps.toString();
-
-    SetLog? priorSet;
-    for (final s in session.performedSets) {
-      if (s.exerciseId == current.exercise.id) priorSet = s;
+    final isNewSet = signature != _lastSetSignature;
+    if (isNewSet) {
+      _lastSetSignature = signature;
+      _repsController.text = current.reps.toString();
+      _weightController.clear();
+      if (_weightErrorText != null) {
+        setState(() => _weightErrorText = null);
+      }
     }
-    _weightController.text =
-        priorSet != null ? _formatWeight(priorSet.weight) : '';
+
+    if (_weightController.text.isEmpty) {
+      SetLog? priorSet;
+      for (final s in session.performedSets) {
+        if (s.exerciseId == current.exercise.id) priorSet = s;
+      }
+      final defaultSet = priorSet ?? heaviestEver;
+      if (defaultSet != null) {
+        _weightController.text = _formatWeight(defaultSet.weight);
+      }
+    }
   }
 
   @override
@@ -86,7 +105,13 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
     // Pré-remplissage des champs à chaque changement de série
     ref.listen<WorkoutSessionState?>(workoutSessionProvider, (previous, next) {
       if (next != null && next.status == SessionStatus.exercising) {
-        _syncInputsForCurrentSet(next);
+        final exerciseId = next.currentWorkoutExercise?.exercise.id;
+        final heaviestEver = exerciseId == null
+            ? null
+            : ref
+                .read(exerciseProgressionProvider(exerciseId))
+                .maybeWhen(data: (p) => p.heaviestSet, orElse: () => null);
+        _syncInputsForCurrentSet(next, heaviestEver: heaviestEver);
       }
     });
 
@@ -280,7 +305,7 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
                   const SizedBox(height: 20),
 
                   // 📊 Saisie de la performance réalisée (poids × reps)
-                  _buildPerformanceInputs(ref, exercise.id),
+                  _buildPerformanceInputs(ref, session, exercise),
                   const SizedBox(height: 8),
                 ],
               ),
@@ -297,14 +322,24 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
             onPressed: () {
-              final weight =
-                  double.tryParse(_weightController.text.replaceAll(',', '.')) ??
-                      0;
+              final weight = double.tryParse(
+                  _weightController.text.replaceAll(',', '.').trim());
+              // La charge est obligatoire, sauf pour les exercices au poids
+              // du corps où 0 kg est une valeur valide.
+              final weightRequired =
+                  exercise.equipmentType != EquipmentType.bodyweight;
+              if (weightRequired && (weight == null || weight <= 0)) {
+                setState(() {
+                  _weightErrorText = 'Indique la charge utilisée';
+                });
+                return;
+              }
               final reps = int.tryParse(_repsController.text) ??
                   currentWorkoutExercise.reps;
-              ref
-                  .read(workoutSessionProvider.notifier)
-                  .validateSet(weight: weight, reps: reps);
+              ref.read(workoutSessionProvider.notifier).validateSet(
+                    weight: weight ?? 0,
+                    reps: reps,
+                  );
             },
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -327,8 +362,22 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
 
   // Bloc de saisie de la performance : rappel de la dernière fois + champs
   // charge (kg) et répétitions réalisées.
-  Widget _buildPerformanceInputs(WidgetRef ref, String exerciseId) {
-    final lastPerf = ref.watch(lastPerformanceProvider(exerciseId));
+  Widget _buildPerformanceInputs(
+    WidgetRef ref,
+    WorkoutSessionState session,
+    Exercise exercise,
+  ) {
+    final lastPerf = ref.watch(lastPerformanceProvider(exercise.id));
+    final progress = ref.watch(exerciseProgressionProvider(exercise.id));
+
+    // Dès que le record personnel est chargé, on tente de préremplir la
+    // charge (sans écraser une saisie déjà en cours, cf. _syncInputsForCurrentSet).
+    final heaviestEver =
+        progress.maybeWhen(data: (p) => p.heaviestSet, orElse: () => null);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _syncInputsForCurrentSet(session, heaviestEver: heaviestEver);
+    });
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -345,15 +394,31 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
                         'Dernière fois : ${_formatWeight(last.weight)} kg × ${last.reps}',
                       ),
                       onPressed: () {
-                        _weightController.text = _formatWeight(last.weight);
-                        _repsController.text = last.reps.toString();
+                        setState(() {
+                          _weightController.text = _formatWeight(last.weight);
+                          _repsController.text = last.reps.toString();
+                          _weightErrorText = null;
+                        });
                       },
                     ),
                   ),
                 ),
           orElse: () => const SizedBox.shrink(),
         ),
+        if (heaviestEver != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Center(
+              child: Text(
+                'Record perso : ${_formatWeight(heaviestEver.weight)} kg × '
+                '${heaviestEver.reps} (proposé par défaut, modifiable)',
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
         Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
               child: TextField(
@@ -361,10 +426,16 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
                 keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),
                 textAlign: TextAlign.center,
-                decoration: const InputDecoration(
+                onChanged: (_) {
+                  if (_weightErrorText != null) {
+                    setState(() => _weightErrorText = null);
+                  }
+                },
+                decoration: InputDecoration(
                   labelText: 'Charge (kg)',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.fitness_center),
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.fitness_center),
+                  errorText: _weightErrorText,
                 ),
               ),
             ),
@@ -391,7 +462,7 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
   Widget _buildRestingScreen(WidgetRef ref, WorkoutSessionState session) {
     return Container(
       key: const ValueKey('resting'),
-      color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.4),
+      color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
       padding: const EdgeInsets.all(24.0),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,

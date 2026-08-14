@@ -1,5 +1,6 @@
 import 'package:sqflite/sqflite.dart';
 import '../../domain/models/user_profile.dart';
+import '../../domain/models/weight_log.dart';
 import '../local/database_helper.dart';
 
 class UserRepository {
@@ -39,5 +40,26 @@ class UserRepository {
 
     // 4. On transforme la première ligne trouvée (maps.first) en un bel objet UserProfile
     return UserProfile.fromMap(maps.first);
+  }
+
+  // ==========================================
+  // HISTORIQUE DU POIDS (courbe d'évolution)
+  // ==========================================
+
+  // Enregistre un nouveau point de poids (un par modification de profil,
+  // même plusieurs fois le même jour) pour la courbe d'évolution.
+  Future<void> logWeight(DateTime date, double weight) async {
+    final db = await _dbHelper.database;
+    await db.insert('weight_logs', WeightLog(date: date, weight: weight).toMap());
+  }
+
+  // Tout l'historique de poids, du plus ancien au plus récent.
+  Future<List<WeightLog>> getWeightLogs() async {
+    final db = await _dbHelper.database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'weight_logs',
+      orderBy: 'date ASC',
+    );
+    return List.generate(maps.length, (i) => WeightLog.fromMap(maps[i]));
   }
 }

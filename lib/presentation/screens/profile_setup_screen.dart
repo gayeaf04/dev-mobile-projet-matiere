@@ -1,10 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../domain/models/user_profile.dart';
 import '../providers/profile_provider.dart';
+import '../widgets/imc_card.dart';
+import '../widgets/weight_chart.dart';
 
+/// Écran de profil : sert à la fois à la création initiale (forcée par le
+/// redirect tant qu'aucun profil n'existe) et à la modification ultérieure
+/// via la route `/profile-edit` (on passe alors [existingProfile]).
 class ProfileSetupScreen extends ConsumerStatefulWidget {
-  const ProfileSetupScreen({super.key});
+  final UserProfile? existingProfile;
+
+  const ProfileSetupScreen({super.key, this.existingProfile});
+
+  bool get isEditing => existingProfile != null;
 
   @override
   ConsumerState<ProfileSetupScreen> createState() => _ProfileSetupScreenState();
@@ -26,11 +36,18 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
   @override
   void initState() {
     super.initState();
-    // Initialisation des contrôleurs au démarrage de l'écran
-    _nameController = TextEditingController();
-    _ageController = TextEditingController();
-    _heightController = TextEditingController();
-    _weightController = TextEditingController();
+    // Initialisation des contrôleurs au démarrage de l'écran, pré-remplis
+    // avec le profil existant si on est en mode modification.
+    final existing = widget.existingProfile;
+    _nameController = TextEditingController(text: existing?.name ?? '');
+    _ageController = TextEditingController(text: existing?.age.toString() ?? '');
+    _heightController =
+        TextEditingController(text: existing?.height.toString() ?? '');
+    _weightController =
+        TextEditingController(text: existing?.weight.toString() ?? '');
+    if (existing != null) {
+      _selectedObjective = existing.objective;
+    }
   }
 
   @override
@@ -43,13 +60,16 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
     super.dispose();
   }
 
-  void _submitForm() {
+  Future<void> _submitForm() async {
     // a. On demande au formulaire de vérifier toutes ses validations graphiques
     if (_formKey.currentState!.validate()) {
 
-      // b. Si tout est bon, on extrait et convertit proprement les valeurs
+      // b. Si tout est bon, on extrait et convertit proprement les valeurs.
+      // En modification, on conserve l'id existant pour mettre à jour la
+      // même ligne en base plutôt que d'en créer une nouvelle.
       final newProfile = UserProfile(
-        id: DateTime.now().millisecondsSinceEpoch.toString(), // ID unique local temporaire
+        id: widget.existingProfile?.id ??
+            DateTime.now().millisecondsSinceEpoch.toString(),
         name: _nameController.text.trim(),
         age: int.parse(_ageController.text),
         height: double.parse(_heightController.text),
@@ -57,13 +77,23 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
         objective: _selectedObjective,
       );
 
-      // c. ON ENVOIE L'ENVELOPPE !
-      // On utilise ref.read car on est dans une action ponctuelle (un clic)
-      ref.read(profileProvider.notifier).updateProfile(newProfile);
+      await ref.read(profileProvider.notifier).updateProfile(newProfile);
 
-      // Note magique : Tu n'as pas besoin de faire un context.go('/') ici !
-      // Dès que updateProfile va modifier l'état, ton app_router va le capter
-      // et te rediriger automatiquement vers la racine.
+      if (!mounted) return;
+
+      if (widget.isEditing) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Profil mis à jour !')),
+        );
+        // L'écran est accessible soit en push (route /profile-edit), soit
+        // comme onglet de la barre du bas : on ne revient en arrière que
+        // dans le premier cas, sinon on reste simplement sur l'onglet.
+        if (Navigator.canPop(context)) {
+          context.pop();
+        }
+      }
+      // En création, pas besoin de naviguer : dès que updateProfile modifie
+      // l'état, l'app_router capte le changement et redirige vers la racine.
     }
   }
 
@@ -71,7 +101,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Créer mon Profil Forge'),
+        title: Text(widget.isEditing ? 'Mon Profil' : 'Créer mon Profil Forge'),
         centerTitle: true,
       ),
       body: SafeArea(
@@ -82,9 +112,11 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text(
-                  'Bienvenue dans Forge. Définissons tes bases pour structurer ta progression.',
-                  style: TextStyle(fontSize: 16, color: Colors.grey),
+                Text(
+                  widget.isEditing
+                      ? 'Modifie tes informations à tout moment : ton IMC et ta courbe de poids se mettront à jour automatiquement.'
+                      : 'Bienvenue dans Forge. Définissons tes bases pour structurer ta progression.',
+                  style: const TextStyle(fontSize: 16, color: Colors.grey),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 32),
@@ -185,8 +217,48 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
-                  child: const Text('Forger mon profil'),
+                  child: Text(widget.isEditing
+                      ? 'Enregistrer les modifications'
+                      : 'Forger mon profil'),
                 ),
+
+                // En modification uniquement : IMC actuel + courbe de poids,
+                // puisqu'il faut un profil déjà enregistré pour avoir un historique.
+                if (widget.isEditing) ...[
+                  const SizedBox(height: 32),
+                  const Divider(),
+                  const SizedBox(height: 16),
+                  const ImcCard(),
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      Icon(Icons.show_chart,
+                          color: Theme.of(context).colorScheme.primary),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Évolution du poids',
+                        style:
+                            TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Consumer(
+                    builder: (context, ref, _) {
+                      final historyAsync = ref.watch(weightHistoryProvider);
+                      return historyAsync.when(
+                        loading: () => const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 32),
+                          child: Center(child: CircularProgressIndicator()),
+                        ),
+                        error: (err, stack) => Text(
+                          'Impossible de charger l\'historique : $err',
+                        ),
+                        data: (logs) => WeightChart(logs: logs),
+                      );
+                    },
+                  ),
+                ],
               ],
             ),
           ),
