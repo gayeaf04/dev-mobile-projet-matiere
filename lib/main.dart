@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forge/presentation/navigation/routes/app_router.dart';
+import 'package:forge/presentation/services/notification_service.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 void main() async {
@@ -9,6 +10,9 @@ void main() async {
 
   // 🌍 Charge les données de formatage pour le français (et les autres langues)
   await initializeDateFormatting('fr_FR', null);
+
+  // 🔔 Prépare le service de notifications locales (rappel quotidien)
+  await NotificationService.instance.initialize();
 
   runApp(
     const ProviderScope(

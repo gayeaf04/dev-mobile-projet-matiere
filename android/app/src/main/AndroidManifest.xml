@@ -1,6 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Nécessaire pour charger les images de démonstration des exercices depuis Internet -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Nécessaire pour afficher le rappel quotidien (Android 13+) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <application
         android:label="forge"
         android:name="${applicationName}"

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../domain/models/user_profile.dart';
 import '../providers/profile_provider.dart';
+import '../providers/reminder_provider.dart';
 import '../widgets/imc_card.dart';
 import '../widgets/weight_chart.dart';
 
@@ -266,6 +267,90 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                           'Impossible de charger l\'historique : $err',
                         ),
                         data: (logs) => WeightChart(logs: logs),
+                      );
+                    },
+                  ),
+
+                  const SizedBox(height: 32),
+                  const Divider(),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Icon(Icons.alarm,
+                          color: Theme.of(context).colorScheme.primary),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Rappel quotidien',
+                        style:
+                            TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Consumer(
+                    builder: (context, ref, _) {
+                      final reminderAsync = ref.watch(reminderProvider);
+                      return reminderAsync.when(
+                        loading: () => const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                          child: Center(child: CircularProgressIndicator()),
+                        ),
+                        error: (err, stack) => Text(
+                          'Impossible de charger le rappel : $err',
+                        ),
+                        data: (settings) => Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            SwitchListTile(
+                              contentPadding: EdgeInsets.zero,
+                              title: const Text('Recevoir un rappel'),
+                              subtitle: const Text(
+                                'Une notification pour ne pas oublier ta séance du jour.',
+                              ),
+                              value: settings.enabled,
+                              onChanged: (value) async {
+                                await ref
+                                    .read(reminderProvider.notifier)
+                                    .setEnabled(value);
+                                if (!context.mounted) return;
+                                final stillDisabled =
+                                    !(ref.read(reminderProvider).value?.enabled ??
+                                        false);
+                                if (value && stillDisabled) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Autorise les notifications dans les réglages pour activer le rappel.',
+                                      ),
+                                    ),
+                                  );
+                                }
+                              },
+                            ),
+                            if (settings.enabled)
+                              ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                leading: const Icon(Icons.access_time),
+                                title: const Text('Heure du rappel'),
+                                trailing: Text(
+                                  settings.time.format(context),
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold),
+                                ),
+                                onTap: () async {
+                                  final picked = await showTimePicker(
+                                    context: context,
+                                    initialTime: settings.time,
+                                  );
+                                  if (picked != null) {
+                                    await ref
+                                        .read(reminderProvider.notifier)
+                                        .setTime(picked);
+                                  }
+                                },
+                              ),
+                          ],
+                        ),
                       );
                     },
                   ),
